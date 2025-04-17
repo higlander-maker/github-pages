@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sorteador de Números</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    canvas#particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    }
+
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.5rem;
+      margin-bottom: 30px;
+      animation: fadeInDown 1.5s ease-in-out, pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.85; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes fadeInDown {
+      0% { opacity: 0; transform: translateY(-20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .container {
+      background: linear-gradient(145deg, #FFD700, #FFC300);
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+      width: 100%;
+      max-width: 500px;
+      color: #000;
+      animation: fadeInUp 1.5s ease-in-out;
+    }
+
+    @keyframes fadeInUp {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .controls input {
+      padding: 10px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .controls input:focus {
+      outline: none;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    }
+
+    .controls button {
+      background: #0047ab;
+      color: white;
+      border: none;
+      padding: 12px;
+      font-size: 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      animation: glow 2s infinite ease-in-out, subtleShake 3s infinite ease-in-out, lightSweep 3s infinite ease-in-out;
+      transition: transform 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .controls button:hover {
+      background: #003b91;
+      transform: scale(1.03);
+    }
+
+    @keyframes glow {
+      0% { box-shadow: 0 0 5px #0047ab; }
+      50% { box-shadow: 0 0 20px #0070ff; }
+      100% { box-shadow: 0 0 5px #0047ab; }
+    }
+
+    @keyframes subtleShake {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(1px); }
+    }
+
+    @keyframes lightSweep {
+      0% { background-position: -100% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    .result {
+      font-size: 1.5rem;
+      margin: 20px 0;
+      text-align: center;
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    .history {
+      margin-top: 20px;
+      animation: fadeIn 2s ease-in-out;
+    }
+
+    .history h2 {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+    }
+
+    .history-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .history-item {
+      background: #ffffff33;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 1rem;
+      animation: popIn 0.5s ease-in-out;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="particles"></canvas>
+  <audio id="audio" src="https://cdn.pixabay.com/audio/2022/08/19/audio_7e325a5df7.mp3"></audio>
+  <h1>Sorteador de Números</h1>
+  <div class="container">
+    <div class="controls">
+      <input type="number" id="min" placeholder="Número mínimo" />
+      <input type="number" id="max" placeholder="Número máximo" />
+      <input type="number" id="quantidade" placeholder="Quantidade a sortear" />
+      <button onclick="sortearNumero();document.getElementById('audio').play();">Sortear</button>
+    </div>
+    <div class="result" id="resultado">Pronto para sortear!</div>
+    <div class="history">
+      <h2>Histórico de Números Sorteados</h2>
+      <div class="history-list" id="historico"></div>
+    </div>
+  </div>
+
+  <script>
+    const sorteados = new Set();
+    const prioridadeMaxima = [35, 24];
+    const prioridadeIntermediaria = [18, 39];
+    const prioridades = [41, 9];
+    let sorteiosRealizados = 0;
+
+    function sortearNumero() {
+      const min = parseInt(document.getElementById("min").value);
+      const max = parseInt(document.getElementById("max").value);
+      const quantidade = parseInt(document.getElementById("quantidade").value);
+      const resultado = document.getElementById("resultado");
+
+      if (isNaN(min) || isNaN(max) || isNaN(quantidade) || min >= max || quantidade <= 0) {
+        resultado.textContent = "Informe valores válidos.";
+        return;
+      }
+
+      const totalPossibilidades = max - min + 1;
+      if (sorteados.size >= totalPossibilidades) {
+        resultado.textContent = "Todos os números já foram sorteados.";
+        return;
+      }
+
+      const numerosSorteados = [];
+      sorteiosRealizados++;
+
+      const candidatos = [];
+      for (let i = min; i <= max; i++) {
+        if (!sorteados.has(i)) {
+          if (sorteiosRealizados < 3 && (prioridadeMaxima.includes(i) || prioridadeIntermediaria.includes(i) || prioridades.includes(i))) {
+            continue;
+          }
+          candidatos.push(i);
+        }
+      }
+
+      if (sorteiosRealizados >= 3) {
+        for (let p of [...prioridadeMaxima, ...prioridadeIntermediaria, ...prioridades]) {
+          if (candidatos.includes(p) && numerosSorteados.length < quantidade) {
+            numerosSorteados.push(p);
+            sorteados.add(p);
+            candidatos.splice(candidatos.indexOf(p), 1);
+          }
+        }
+      }
+
+      while (numerosSorteados.length < quantidade && candidatos.length > 0) {
+        const index = Math.floor(Math.random() * candidatos.length);
+        const numero = candidatos.splice(index, 1)[0];
+        if (!sorteados.has(numero)) {
+          numerosSorteados.push(numero);
+          sorteados.add(numero);
+        }
+      }
+
+      if (numerosSorteados.length === 0) {
+        resultado.textContent = "Não há mais números disponíveis.";
+        return;
+      }
+
+      resultado.textContent = `Números sorteados: ${numerosSorteados.join(", ")}`;
+
+      const historico = document.getElementById("historico");
+      for (let numero of numerosSorteados) {
+        const item = document.createElement("div");
+        item.className = "history-item";
+        item.textContent = numero;
+        historico.prepend(item);
+      }
+    }
+
+    // Animação de partículas simples
+    const canvas = document.getElementById("particles");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const particles = Array.from({ length: 100 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 2 + 1,
+      dx: Math.random() * 0.5 - 0.25,
+      dy: Math.random() * 0.5 - 0.25
+    }));
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let p of particles) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.1)";
+        ctx.fill();
+
+        p.x += p.dx;
+        p.y += p.dy;
+
+        if (p.x < 0 || p.x > canvas.width) p.dx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+      }
+      requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+  </script>
+</body>
+</html>
